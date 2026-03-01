@@ -181,7 +181,7 @@ export default function ResultatsPage() {
               <span className="hidden sm:inline">Modifier</span>
             </Link>
             <a
-              href="https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"
+              href="https://buy.stripe.com/8x2aEQ03G2zAfcQ91E6c000"
               className="inline-flex items-center gap-1.5 bg-cyan-400 hover:bg-cyan-500 text-white font-sans text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm shadow-cyan-400/20"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,7 +322,7 @@ export default function ResultatsPage() {
                             Accédez aux 8 sections complètes, au prévisionnel financier détaillé et à l&apos;export PDF professionnel.
                           </p>
                           <a
-                            href="https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"
+                            href="https://buy.stripe.com/8x2aEQ03G2zAfcQ91E6c000"
                             className="inline-flex items-center gap-2 bg-cyan-400 hover:bg-cyan-500 text-white font-sans font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-cyan-400/20 text-base"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -367,7 +367,7 @@ export default function ResultatsPage() {
                 : "Accédez à l'intégralité des 8 sections, au prévisionnel financier sur 3 ans et exportez en PDF professionnel."}
             </p>
             <a
-              href={isPaid ? "#" : "https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"}
+              href={isPaid ? "#" : "https://buy.stripe.com/8x2aEQ03G2zAfcQ91E6c000"}
               className="inline-flex items-center gap-2 bg-cyan-400 hover:bg-cyan-500 text-white font-sans font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-cyan-400/20 text-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
