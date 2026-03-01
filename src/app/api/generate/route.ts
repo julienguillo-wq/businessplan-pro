@@ -27,7 +27,7 @@ const SECTION_CONFIGS: Record<string, { title: string; instruction: string }> = 
   },
   "financial-forecast": {
     title: "Prévisionnel Financier",
-    instruction: "Génère le prévisionnel financier avec des tableaux HTML détaillés : compte de résultat prévisionnel sur 3 ans, plan de trésorerie, seuil de rentabilité, plan de financement. Les chiffres doivent être cohérents et réalistes.",
+    instruction: "Génère le prévisionnel financier : compte de résultat prévisionnel sur 3 ans, plan de trésorerie, seuil de rentabilité, plan de financement. Les chiffres doivent être cohérents et réalistes. Limite ta réponse à 2000 caractères maximum. Utilise des listes à puces (<ul><li>) au lieu de tableaux HTML pour présenter les chiffres.",
   },
   "legal-status": {
     title: "Statut Juridique",
@@ -82,31 +82,114 @@ Marketing : ${marketingChannels}, budget : ${formData.marketingBudget}€/mois
 Lancement : ${formData.launchDate}, statut : ${formData.legalStatus}, objectif BP : ${formData.bpObjective}`;
 }
 
+function repairTruncatedJson(text: string): string {
+  // If text already ends with }, it's likely complete
+  if (text.trimEnd().endsWith("}")) return text;
+
+  console.log("[API] JSON tronqué détecté, tentative de réparation...");
+
+  let repaired = text;
+
+  // Check if we're inside a string value (odd number of unescaped quotes)
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+    }
+  }
+
+  // If we're inside a string, close it
+  if (inString) {
+    // Remove any trailing incomplete HTML tag or escape sequence
+    repaired = repaired.replace(/\\?[^"]*$/, "");
+    // Make sure we didn't leave a trailing backslash
+    if (repaired.endsWith("\\")) {
+      repaired = repaired.slice(0, -1);
+    }
+    repaired += '"';
+  }
+
+  // Count unclosed braces and brackets
+  let braces = 0;
+  let brackets = 0;
+  inString = false;
+  escaped = false;
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") braces++;
+    if (ch === "}") braces--;
+    if (ch === "[") brackets++;
+    if (ch === "]") brackets--;
+  }
+
+  // Close unclosed brackets and braces
+  for (let i = 0; i < brackets; i++) repaired += "]";
+  for (let i = 0; i < braces; i++) repaired += "}";
+
+  console.log("[API] JSON réparé, ajouté:", repaired.length - text.length, "caractères");
+  return repaired;
+}
+
 function cleanAndParse(raw: string): Record<string, unknown> | null {
   let text = raw.trim();
 
   // Remove markdown code fences
   text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "");
 
-  // Remove any text before the first { and after the last }
+  // Remove any text before the first {
   const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    text = text.substring(firstBrace, lastBrace + 1);
+  if (firstBrace > 0) {
+    text = text.substring(firstBrace);
   }
 
-  // Try parsing
+  // Remove any text after the last } (if one exists)
+  const lastBrace = text.lastIndexOf("}");
+  if (lastBrace >= 0 && lastBrace < text.length - 1) {
+    text = text.substring(0, lastBrace + 1);
+  }
+
+  // Try direct parsing
   try {
     return JSON.parse(text);
   } catch {
-    console.log("Échec parsing direct, tentative extraction braces...");
+    console.log("[API] Échec parsing direct");
   }
 
-  // Regex fallback for content extraction
+  // Try repairing truncated JSON
+  const repaired = repairTruncatedJson(text);
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    console.log("[API] Échec parsing après réparation");
+  }
+
+  // Regex fallback: extract content field from raw text
   const idMatch = raw.match(/"id"\s*:\s*"([^"]+)"/);
   const titleMatch = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   const contentMatch = raw.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-
 
   if (idMatch && contentMatch) {
     let content = contentMatch[1];
@@ -115,6 +198,25 @@ function cleanAndParse(raw: string): Record<string, unknown> | null {
     } catch {
       // keep as-is
     }
+    return {
+      id: idMatch[1],
+      title: titleMatch ? titleMatch[1] : idMatch[1],
+      content,
+    };
+  }
+
+  // Last resort: extract everything after "content":" as raw content
+  const lastResort = raw.match(/"content"\s*:\s*"([\s\S]+)/);
+  if (lastResort && idMatch) {
+    let content = lastResort[1];
+    // Remove trailing incomplete JSON artifacts
+    content = content.replace(/"\s*\}\s*$/, "");
+    content = content.replace(/\\$/, "");
+    // Unescape basic JSON escapes
+    content = content
+      .replace(/\\n/g, "\n")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
     return {
       id: idMatch[1],
       title: titleMatch ? titleMatch[1] : idMatch[1],
@@ -149,9 +251,11 @@ export async function POST(request: Request) {
 
     const client = new Anthropic();
 
+    const maxTokens = sectionId === "financial-forecast" ? 2000 : 1500;
+
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
+      max_tokens: maxTokens,
       messages: [
         {
           role: "user",
