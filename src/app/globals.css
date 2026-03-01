@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F8FAFB;
+  --foreground: #1a1a2e;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F8FAFB;
+}
+::-webkit-scrollbar-thumb {
+  background: #C5D5DE;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9FB8C8;
+}
+
+/* Progress bar animation */
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Brain icon animation */
+@keyframes brainPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(98, 182, 203, 0.4)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 40px rgba(98, 182, 203, 0.8)); }
+}
+
+.animate-brain-pulse {
+  animation: brainPulse 2s ease-in-out infinite;
+}
+
+/* Checkbox animation */
+@keyframes checkIn {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-check-in {
+  animation: checkIn 0.4s ease-out forwards;
+}
