@@ -180,8 +180,8 @@ export default function ResultatsPage() {
               </svg>
               <span className="hidden sm:inline">Modifier</span>
             </Link>
-            <Link
-              href="/checkout"
+            <a
+              href="https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"
               className="inline-flex items-center gap-1.5 bg-cyan-400 hover:bg-cyan-500 text-white font-sans text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm shadow-cyan-400/20"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,7 +189,7 @@ export default function ResultatsPage() {
               </svg>
               <span className="hidden sm:inline">Exporter PDF &mdash; 49&euro;</span>
               <span className="sm:hidden">PDF</span>
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -321,15 +321,15 @@ export default function ResultatsPage() {
                           <p className="text-navy-500 font-sans text-sm text-center mb-6 max-w-sm">
                             Accédez aux 8 sections complètes, au prévisionnel financier détaillé et à l&apos;export PDF professionnel.
                           </p>
-                          <Link
-                            href="/checkout"
+                          <a
+                            href="https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"
                             className="inline-flex items-center gap-2 bg-cyan-400 hover:bg-cyan-500 text-white font-sans font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-cyan-400/20 text-base"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                             Débloquer — 49&euro;
-                          </Link>
+                          </a>
                         </div>
                       </div>
                     ) : (
@@ -366,15 +366,15 @@ export default function ResultatsPage() {
                 ? "Téléchargez votre business plan au format PDF, mis en page professionnellement, prêt à présenter à vos partenaires et investisseurs."
                 : "Accédez à l'intégralité des 8 sections, au prévisionnel financier sur 3 ans et exportez en PDF professionnel."}
             </p>
-            <Link
-              href={isPaid ? "#" : "/checkout"}
+            <a
+              href={isPaid ? "#" : "https://buy.stripe.com/8x2aEQ03G2zAfcQ51E6c000"}
               className="inline-flex items-center gap-2 bg-cyan-400 hover:bg-cyan-500 text-white font-sans font-semibold px-8 py-3.5 rounded-xl transition-colors shadow-lg shadow-cyan-400/20 text-lg"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               {isPaid ? "Exporter PDF" : "Débloquer — 49\u20AC"}
-            </Link>
+            </a>
           </div>
         </div>
       </main>
