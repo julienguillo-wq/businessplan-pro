@@ -1,46 +1,63 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { FormData, BusinessPlan } from "@/lib/types";
+import { FormData } from "@/lib/types";
 
 export const maxDuration = 300;
 
-const SECTION_IDS = [
-  "executive-summary",
-  "company-overview",
-  "market-study",
-  "commercial-strategy",
-  "operational-plan",
-  "financial-forecast",
-  "legal-status",
-  "risks-opportunities",
-] as const;
-
-const SECTION_TITLES: Record<string, string> = {
-  "executive-summary": "Résumé Exécutif",
-  "company-overview": "Présentation de l'Entreprise",
-  "market-study": "Étude de Marché",
-  "commercial-strategy": "Stratégie Commerciale",
-  "operational-plan": "Plan Opérationnel",
-  "financial-forecast": "Prévisionnel Financier",
-  "legal-status": "Statut Juridique",
-  "risks-opportunities": "Risques & Opportunités",
+const SECTION_CONFIGS: Record<string, { title: string; instruction: string }> = {
+  "executive-summary": {
+    title: "Résumé Exécutif",
+    instruction: "Rédige le résumé exécutif : vision du projet, opportunité de marché, modèle économique, besoins de financement et objectifs clés. Clair et percutant pour un banquier.",
+  },
+  "company-overview": {
+    title: "Présentation de l'Entreprise",
+    instruction: "Présente l'entreprise : histoire, mission, valeurs, structure juridique, équipe fondatrice et compétences clés. Détaille l'expérience des fondateurs.",
+  },
+  "market-study": {
+    title: "Étude de Marché",
+    instruction: "Réalise l'étude de marché : taille du marché, tendances, segments de clientèle, analyse de la demande, profil du client idéal. Utilise des données chiffrées réalistes pour la France.",
+  },
+  "commercial-strategy": {
+    title: "Stratégie Commerciale",
+    instruction: "Détaille la stratégie commerciale : positionnement, politique de prix, canaux de distribution, plan marketing, analyse concurrentielle et avantages compétitifs.",
+  },
+  "operational-plan": {
+    title: "Plan Opérationnel",
+    instruction: "Décris le plan opérationnel : processus de production/livraison, locaux, équipements, fournisseurs, planning de lancement et jalons clés.",
+  },
+  "financial-forecast": {
+    title: "Prévisionnel Financier",
+    instruction: "Génère le prévisionnel financier avec des tableaux HTML détaillés : compte de résultat prévisionnel sur 3 ans, plan de trésorerie, seuil de rentabilité, plan de financement. Les chiffres doivent être cohérents et réalistes.",
+  },
+  "legal-status": {
+    title: "Statut Juridique",
+    instruction: "Recommande et justifie le statut juridique : avantages/inconvénients, régime fiscal et social, obligations légales, démarches de création en France.",
+  },
+  "risks-opportunities": {
+    title: "Risques & Opportunités",
+    instruction: "Analyse les risques et opportunités : analyse SWOT, risques identifiés avec plans de mitigation, opportunités de développement et facteurs clés de succès.",
+  },
 };
 
-const SYSTEM_PROMPT = `Tu es un consultant expert en business plans pour le marché français. Génère un business plan professionnel à partir des informations fournies.
+const VALID_SECTION_IDS = Object.keys(SECTION_CONFIGS);
 
-Réponds UNIQUEMENT avec du JSON valide, sans backticks, sans texte avant ou après. Pas de \`\`\`json, pas de \`\`\`, pas de commentaire. Juste le JSON.
+function buildSystemPrompt(sectionId: string): string {
+  const config = SECTION_CONFIGS[sectionId];
+  return `Tu es un consultant expert en business plans pour le marché français.
 
-Structure exacte :
-{"sections":[{"id":"...","title":"...","content":"..."},…]}
+Réponds UNIQUEMENT avec du JSON valide. Pas de backticks, pas de texte avant ou après. Juste le JSON.
 
-Les 8 sections (dans cet ordre) : executive-summary, company-overview, market-study, commercial-strategy, operational-plan, financial-forecast, legal-status, risks-opportunities.
+Structure exacte de ta réponse :
+{"id":"${sectionId}","title":"${config.title}","content":"..."}
 
-Règles :
-- Contenu en HTML (<h3>, <p>, <ul>, <li>, <strong>, <em>, <table>). Pas de <h1>/<h2>.
+Règles pour le contenu :
+- HTML valide uniquement : <h3>, <p>, <ul>, <li>, <ol>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Pas de <h1>/<h2>.
 - Données chiffrées réalistes pour le marché français.
-- Section financial-forecast : tableaux HTML avec projections 3 ans (compte de résultat, trésorerie, seuil de rentabilité).
 - Ton professionnel, adapté à un dossier bancaire.
-- Sois concis mais complet.`;
+- Section détaillée et complète.
+
+${config.instruction}`;
+}
 
 function buildUserPrompt(formData: FormData): string {
   const fundingSources =
@@ -53,9 +70,7 @@ function buildUserPrompt(formData: FormData): string {
       ? formData.marketingChannels.join(", ")
       : "Non précisé";
 
-  return `Génère un business plan pour ce projet :
-
-Projet : ${formData.projectName} — ${formData.description}
+  return `Projet : ${formData.projectName} — ${formData.description}
 Secteur : ${formData.sector}
 Lieu : ${formData.city} (${formData.department}), local : ${formData.localType}
 Équipe : ${formData.founders} fondateur(s), ${formData.employees} employés prévus. Expérience : ${formData.experience}
@@ -67,107 +82,54 @@ Marketing : ${marketingChannels}, budget : ${formData.marketingBudget}€/mois
 Lancement : ${formData.launchDate}, statut : ${formData.legalStatus}, objectif BP : ${formData.bpObjective}`;
 }
 
-function cleanRawResponse(raw: string): string {
+function cleanAndParse(raw: string): Record<string, unknown> | null {
   let text = raw.trim();
 
-  // Remove markdown code fences (```json ... ``` or ``` ... ```)
+  // Remove markdown code fences
   text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "");
 
-  // Remove any text before the first {
+  // Remove any text before the first { and after the last }
   const firstBrace = text.indexOf("{");
-  if (firstBrace > 0) {
-    text = text.substring(firstBrace);
-  }
-
-  // Remove any text after the last }
   const lastBrace = text.lastIndexOf("}");
-  if (lastBrace >= 0 && lastBrace < text.length - 1) {
-    text = text.substring(0, lastBrace + 1);
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    text = text.substring(firstBrace, lastBrace + 1);
   }
 
-  return text.trim();
-}
-
-function extractSectionsWithRegex(raw: string): BusinessPlan | null {
-  const sections: BusinessPlan["sections"] = [];
-
-  for (const id of SECTION_IDS) {
-    // Match "id":"<section-id>" ... "content":"<content>"
-    // Account for varying key order: id/title/content can appear in any order
-    const sectionRegex = new RegExp(
-      `\\{[^{}]*"id"\\s*:\\s*"${id}"[^{}]*"content"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"[^{}]*\\}`,
-      "s"
-    );
-    let match = raw.match(sectionRegex);
-
-    // Try alternate key order: content before id
-    if (!match) {
-      const altRegex = new RegExp(
-        `\\{[^{}]*"content"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"[^{}]*"id"\\s*:\\s*"${id}"[^{}]*\\}`,
-        "s"
-      );
-      match = raw.match(altRegex);
-    }
-
-    if (match) {
-      let content = match[1];
-      // Unescape JSON string escapes
-      try {
-        content = JSON.parse(`"${content}"`);
-      } catch {
-        // Keep as-is if unescape fails
-      }
-      sections.push({
-        id,
-        title: SECTION_TITLES[id] || id,
-        content,
-      });
-    }
+  // Try parsing
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.log("Échec parsing direct, tentative extraction braces...");
   }
 
-  if (sections.length >= 4) {
-    // Fill missing sections with placeholder
-    for (const id of SECTION_IDS) {
-      if (!sections.find((s) => s.id === id)) {
-        sections.push({
-          id,
-          title: SECTION_TITLES[id] || id,
-          content: "<p><em>Section en cours de génération. Veuillez régénérer le business plan.</em></p>",
-        });
-      }
+  // Regex fallback for content extraction
+  const idMatch = raw.match(/"id"\s*:\s*"([^"]+)"/);
+  const titleMatch = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const contentMatch = raw.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+
+
+  if (idMatch && contentMatch) {
+    let content = contentMatch[1];
+    try {
+      content = JSON.parse(`"${content}"`);
+    } catch {
+      // keep as-is
     }
-    // Sort by SECTION_IDS order
-    sections.sort(
-      (a, b) => SECTION_IDS.indexOf(a.id as typeof SECTION_IDS[number]) - SECTION_IDS.indexOf(b.id as typeof SECTION_IDS[number])
-    );
-    return { sections };
+    return {
+      id: idMatch[1],
+      title: titleMatch ? titleMatch[1] : idMatch[1],
+      content,
+    };
   }
 
   return null;
 }
 
-function validateBusinessPlan(data: unknown): data is BusinessPlan {
-  if (!data || typeof data !== "object") return false;
-
-  const plan = data as Record<string, unknown>;
-  if (!Array.isArray(plan.sections)) return false;
-  if (plan.sections.length !== 8) return false;
-
-  for (const section of plan.sections) {
-    if (typeof section !== "object" || section === null) return false;
-    const s = section as Record<string, unknown>;
-    if (typeof s.id !== "string") return false;
-    if (typeof s.title !== "string") return false;
-    if (typeof s.content !== "string") return false;
-    if (!SECTION_IDS.includes(s.id as (typeof SECTION_IDS)[number])) return false;
-  }
-
-  return true;
-}
-
 export async function POST(request: Request) {
   try {
-    const formData: FormData = await request.json();
+    const body = await request.json();
+    const sectionId: string | undefined = body.section;
+    const formData: FormData = body.formData || body;
 
     if (!formData.projectName || !formData.description) {
       return NextResponse.json(
@@ -176,18 +138,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!sectionId || !VALID_SECTION_IDS.includes(sectionId)) {
+      return NextResponse.json(
+        { error: `Section invalide : ${sectionId}. Sections valides : ${VALID_SECTION_IDS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[API] Génération section: ${sectionId}`);
+
     const client = new Anthropic();
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 3000,
+      max_tokens: 1500,
       messages: [
         {
           role: "user",
           content: buildUserPrompt(formData),
         },
       ],
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(sectionId),
     });
 
     const textBlock = message.content.find((block) => block.type === "text");
@@ -200,79 +171,30 @@ export async function POST(request: Request) {
     }
 
     const rawText = textBlock.text;
-    console.log("=== RÉPONSE BRUTE CLAUDE ===");
-    console.log(rawText.substring(0, 500));
-    console.log("...");
-    console.log(rawText.substring(rawText.length - 300));
-    console.log("=== FIN RÉPONSE (longueur:", rawText.length, "chars) ===");
+    console.log(`[API] Réponse brute (${sectionId}):`, rawText.substring(0, 200), "...");
 
-    // Step 1: Clean the response
-    const cleaned = cleanRawResponse(rawText);
-    console.log("=== APRÈS NETTOYAGE (premiers 200 chars) ===");
-    console.log(cleaned.substring(0, 200));
+    const parsed = cleanAndParse(rawText);
 
-    // Step 2: Try direct JSON parse
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(cleaned);
-      console.log("JSON parsé directement avec succès");
-    } catch (parseError) {
-      console.log("Échec parsing direct:", parseError instanceof Error ? parseError.message : parseError);
-
-      // Step 3: Try extracting the outermost JSON object
-      const firstBrace = cleaned.indexOf("{");
-      const lastBrace = cleaned.lastIndexOf("}");
-      if (firstBrace >= 0 && lastBrace > firstBrace) {
-        const extracted = cleaned.substring(firstBrace, lastBrace + 1);
-        try {
-          parsed = JSON.parse(extracted);
-          console.log("JSON parsé après extraction braces");
-        } catch {
-          console.log("Échec parsing après extraction braces");
-        }
-      }
-
-      // Step 4: Fallback — extract sections individually with regex
-      if (!parsed) {
-        console.log("Tentative extraction par regex...");
-        const regexResult = extractSectionsWithRegex(rawText);
-        if (regexResult) {
-          console.log(`Regex: ${regexResult.sections.length} sections extraites`);
-          parsed = regexResult;
-        } else {
-          console.error("Toutes les méthodes de parsing ont échoué");
-          console.error("Réponse brute complète:", rawText);
-          return NextResponse.json(
-            {
-              error:
-                "La réponse de l'IA n'est pas un JSON valide. Veuillez réessayer.",
-            },
-            { status: 500 }
-          );
-        }
-      }
-    }
-
-    if (!validateBusinessPlan(parsed)) {
-      console.error("Validation échouée. Structure reçue:", JSON.stringify(parsed).substring(0, 500));
-      // Try regex fallback on validation failure too
-      const regexResult = extractSectionsWithRegex(rawText);
-      if (regexResult && validateBusinessPlan(regexResult)) {
-        console.log("Récupéré via regex après échec validation");
-        return NextResponse.json(regexResult);
-      }
+    if (!parsed || typeof parsed.content !== "string") {
+      console.error(`[API] Parsing échoué pour ${sectionId}. Réponse brute:`, rawText);
       return NextResponse.json(
-        {
-          error:
-            "La structure du business plan est invalide. Veuillez réessayer.",
-        },
+        { error: "La réponse de l'IA n'est pas un JSON valide. Veuillez réessayer." },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(parsed);
+    const config = SECTION_CONFIGS[sectionId];
+    const section = {
+      id: sectionId,
+      title: (typeof parsed.title === "string" && parsed.title) || config.title,
+      content: parsed.content,
+    };
+
+    console.log(`[API] Section ${sectionId} générée (${section.content.length} chars)`);
+
+    return NextResponse.json(section);
   } catch (error: unknown) {
-    console.error("Erreur lors de la génération du business plan:", error);
+    console.error("Erreur lors de la génération:", error);
 
     if (error instanceof Anthropic.APIError) {
       const statusMessages: Record<number, string> = {
