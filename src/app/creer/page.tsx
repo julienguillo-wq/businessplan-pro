@@ -14,11 +14,11 @@ import { saveFormData, loadFormData } from "@/lib/store";
 
 const STEP_TITLES = [
   "Votre projet",
-  "Secteur d'activit\u00e9",
+  "Secteur d'activité",
   "Localisation",
-  "L'\u00e9quipe",
+  "L'équipe",
   "Financement",
-  "Client\u00e8le",
+  "Clientèle",
   "Offre",
   "Concurrence",
   "Marketing",
@@ -29,9 +29,9 @@ const LOCAL_TYPES = [
   "Pas de local",
   "Bureau",
   "Commerce/Boutique",
-  "Atelier/Entrep\u00f4t",
+  "Atelier/Entrepôt",
   "Restaurant/Bar",
-  "\u00c0 domicile",
+  "À domicile",
   "Coworking",
 ];
 
@@ -40,13 +40,13 @@ const PRICING_MODELS = [
   "Abonnement",
   "Commission",
   "Freemium",
-  "\u00c0 l'heure/journ\u00e9e",
+  "À l'heure/journée",
   "Sur devis",
   "Mixte",
 ];
 
 const BP_OBJECTIVES = [
-  "Obtenir un pr\u00eat bancaire",
+  "Obtenir un prêt bancaire",
   "Convaincre des investisseurs",
   "Structurer mon projet",
   "Demander des aides/subventions",
@@ -122,7 +122,7 @@ export default function CreerPage() {
       case 3:
         if (!formData.city.trim()) newErrors.city = "La ville est requise.";
         if (!formData.department.trim())
-          newErrors.department = "Le d\u00e9partement est requis.";
+          newErrors.department = "Le département est requis.";
         if (!formData.localType)
           newErrors.localType = "Veuillez choisir un type de local.";
         break;
@@ -130,25 +130,25 @@ export default function CreerPage() {
         if (!formData.founders)
           newErrors.founders = "Veuillez indiquer le nombre de fondateurs.";
         if (!formData.experience.trim())
-          newErrors.experience = "L'exp\u00e9rience est requise.";
+          newErrors.experience = "L'expérience est requise.";
         if (!formData.employees.trim())
-          newErrors.employees = "Veuillez indiquer le nombre d'employ\u00e9s pr\u00e9vus.";
+          newErrors.employees = "Veuillez indiquer le nombre d'employés prévus.";
         break;
       case 5:
         if (!formData.investment.trim())
           newErrors.investment = "L'investissement initial est requis.";
         if (formData.fundingSources.length === 0)
           newErrors.fundingSources =
-            "Veuillez s\u00e9lectionner au moins une source de financement.";
+            "Veuillez sélectionner au moins une source de financement.";
         if (!formData.revenueTarget.trim())
           newErrors.revenueTarget =
             "L'objectif de chiffre d'affaires est requis.";
         break;
       case 6:
         if (!formData.clientType)
-          newErrors.clientType = "Veuillez choisir un type de client\u00e8le.";
+          newErrors.clientType = "Veuillez choisir un type de clientèle.";
         if (!formData.idealClient.trim())
-          newErrors.idealClient = "La description du client id\u00e9al est requise.";
+          newErrors.idealClient = "La description du client idéal est requise.";
         break;
       case 7:
         if (!formData.products.trim())
@@ -156,20 +156,20 @@ export default function CreerPage() {
             "La description des produits ou services est requise.";
         if (!formData.pricingModel)
           newErrors.pricingModel =
-            "Veuillez choisir un mod\u00e8le de tarification.";
+            "Veuillez choisir un modèle de tarification.";
         break;
       case 8:
         if (!formData.competitors.trim())
           newErrors.competitors =
-            "Veuillez d\u00e9crire vos principaux concurrents.";
+            "Veuillez décrire vos principaux concurrents.";
         if (!formData.competitiveAdvantage.trim())
           newErrors.competitiveAdvantage =
-            "Veuillez d\u00e9crire votre avantage concurrentiel.";
+            "Veuillez décrire votre avantage concurrentiel.";
         break;
       case 9:
         if (formData.marketingChannels.length === 0)
           newErrors.marketingChannels =
-            "Veuillez s\u00e9lectionner au moins un canal marketing.";
+            "Veuillez sélectionner au moins un canal marketing.";
         if (!formData.marketingBudget.trim())
           newErrors.marketingBudget = "Le budget marketing est requis.";
         break;
@@ -266,13 +266,13 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="description">
-          D\u00e9crivez votre projet en quelques phrases
+          Décrivez votre projet en quelques phrases
         </Label>
         <textarea
           id="description"
           rows={4}
           className={inputClass("description")}
-          placeholder="Pr\u00e9sentez votre id\u00e9e, votre vision et ce qui vous motive..."
+          placeholder="Présentez votre idée, votre vision et ce qui vous motive..."
           value={formData.description}
           onChange={(e) => updateField("description", e.target.value)}
         />
@@ -284,7 +284,7 @@ export default function CreerPage() {
   const renderStep2 = () => (
     <div className="space-y-6">
       <div>
-        <Label htmlFor="sector">Secteur d&apos;activit\u00e9</Label>
+        <Label htmlFor="sector">Secteur d&apos;activité</Label>
         <select
           id="sector"
           className={selectClass("sector")}
@@ -318,7 +318,7 @@ export default function CreerPage() {
         <ErrorMessage field="city" />
       </div>
       <div>
-        <Label htmlFor="department">D\u00e9partement (ex : 75, 69, 33)</Label>
+        <Label htmlFor="department">Département (ex : 75, 69, 33)</Label>
         <input
           id="department"
           type="text"
@@ -369,13 +369,13 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="experience">
-          Exp\u00e9rience pertinente des fondateurs
+          Expérience pertinente des fondateurs
         </Label>
         <textarea
           id="experience"
           rows={3}
           className={inputClass("experience")}
-          placeholder="D\u00e9crivez les comp\u00e9tences et exp\u00e9riences cl\u00e9s..."
+          placeholder="Décrivez les compétences et expériences clés..."
           value={formData.experience}
           onChange={(e) => updateField("experience", e.target.value)}
         />
@@ -383,7 +383,7 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="employees">
-          Nombre d&apos;employ\u00e9s pr\u00e9vus la premi\u00e8re ann\u00e9e
+          Nombre d&apos;employés prévus la première année
         </Label>
         <input
           id="employees"
@@ -403,7 +403,7 @@ export default function CreerPage() {
     <div className="space-y-6">
       <div>
         <Label htmlFor="investment">
-          Investissement initial estim\u00e9 (&euro;)
+          Investissement initial estimé (&euro;)
         </Label>
         <input
           id="investment"
@@ -418,7 +418,7 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="fundingSources">
-          Sources de financement envisag\u00e9es
+          Sources de financement envisagées
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
           {FUNDING_SOURCES.map((source) => (
@@ -444,7 +444,7 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="revenueTarget">
-          Objectif de chiffre d&apos;affaires ann\u00e9e 1 (&euro;)
+          Objectif de chiffre d&apos;affaires année 1 (&euro;)
         </Label>
         <input
           id="revenueTarget"
@@ -463,7 +463,7 @@ export default function CreerPage() {
   const renderStep6 = () => (
     <div className="space-y-6">
       <div>
-        <Label htmlFor="clientType">Type de client\u00e8le</Label>
+        <Label htmlFor="clientType">Type de clientèle</Label>
         <div className="space-y-3 mt-1">
           {[
             { value: "B2C", label: "B2C (Particuliers)" },
@@ -492,12 +492,12 @@ export default function CreerPage() {
         <ErrorMessage field="clientType" />
       </div>
       <div>
-        <Label htmlFor="idealClient">D\u00e9crivez votre client id\u00e9al</Label>
+        <Label htmlFor="idealClient">Décrivez votre client idéal</Label>
         <textarea
           id="idealClient"
           rows={4}
           className={inputClass("idealClient")}
-          placeholder="Qui est votre cible ? \u00c2ge, revenus, habitudes, besoins..."
+          placeholder="Qui est votre cible ? Âge, revenus, habitudes, besoins..."
           value={formData.idealClient}
           onChange={(e) => updateField("idealClient", e.target.value)}
         />
@@ -510,7 +510,7 @@ export default function CreerPage() {
     <div className="space-y-6">
       <div>
         <Label htmlFor="products">
-          D\u00e9crivez vos produits ou services principaux
+          Décrivez vos produits ou services principaux
         </Label>
         <textarea
           id="products"
@@ -523,14 +523,14 @@ export default function CreerPage() {
         <ErrorMessage field="products" />
       </div>
       <div>
-        <Label htmlFor="pricingModel">Mod\u00e8le de tarification</Label>
+        <Label htmlFor="pricingModel">Modèle de tarification</Label>
         <select
           id="pricingModel"
           className={selectClass("pricingModel")}
           value={formData.pricingModel}
           onChange={(e) => updateField("pricingModel", e.target.value)}
         >
-          <option value="">-- Choisissez un mod\u00e8le --</option>
+          <option value="">-- Choisissez un modèle --</option>
           {PRICING_MODELS.map((m) => (
             <option key={m} value={m}>
               {m}
@@ -566,7 +566,7 @@ export default function CreerPage() {
           id="competitiveAdvantage"
           rows={4}
           className={inputClass("competitiveAdvantage")}
-          placeholder="Ce qui vous diff\u00e9rencie : expertise, technologie, prix, qualit\u00e9..."
+          placeholder="Ce qui vous différencie : expertise, technologie, prix, qualité..."
           value={formData.competitiveAdvantage}
           onChange={(e) =>
             updateField("competitiveAdvantage", e.target.value)
@@ -581,7 +581,7 @@ export default function CreerPage() {
     <div className="space-y-6">
       <div>
         <Label htmlFor="marketingChannels">
-          Canaux marketing envisag\u00e9s
+          Canaux marketing envisagés
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
           {MARKETING_CHANNELS.map((channel) => (
@@ -607,7 +607,7 @@ export default function CreerPage() {
       </div>
       <div>
         <Label htmlFor="marketingBudget">
-          Budget marketing mensuel estim\u00e9 (&euro;)
+          Budget marketing mensuel estimé (&euro;)
         </Label>
         <input
           id="marketingBudget"
@@ -626,7 +626,7 @@ export default function CreerPage() {
   const renderStep10 = () => (
     <div className="space-y-6">
       <div>
-        <Label htmlFor="launchDate">Date de lancement pr\u00e9vue</Label>
+        <Label htmlFor="launchDate">Date de lancement prévue</Label>
         <input
           id="launchDate"
           type="date"
@@ -637,7 +637,7 @@ export default function CreerPage() {
         <ErrorMessage field="launchDate" />
       </div>
       <div>
-        <Label htmlFor="legalStatus">Statut juridique envisag\u00e9</Label>
+        <Label htmlFor="legalStatus">Statut juridique envisagé</Label>
         <select
           id="legalStatus"
           className={selectClass("legalStatus")}
@@ -721,7 +721,7 @@ export default function CreerPage() {
           {/* Step indicator text */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-[#1B4965]">
-              \u00c9tape {step} sur {TOTAL_STEPS}
+              Étape {step} sur {TOTAL_STEPS}
             </p>
             <p className="text-sm font-medium text-[#0D1B2A]">
               {STEP_TITLES[step - 1]}
@@ -746,16 +746,16 @@ export default function CreerPage() {
             {STEP_TITLES[step - 1]}
           </h1>
           <p className="text-sm text-gray-500 mb-8">
-            {step === 1 && "Commencez par nous parler de votre id\u00e9e."}
-            {step === 2 && "Dans quel domaine \u00e9volue votre projet ?"}
-            {step === 3 && "O\u00f9 sera bas\u00e9e votre activit\u00e9 ?"}
-            {step === 4 && "Parlez-nous de votre \u00e9quipe fondatrice."}
-            {step === 5 && "D\u00e9taillons les aspects financiers."}
-            {step === 6 && "\u00c0 qui s'adresse votre offre ?"}
+            {step === 1 && "Commencez par nous parler de votre idée."}
+            {step === 2 && "Dans quel domaine évolue votre projet ?"}
+            {step === 3 && "Où sera basée votre activité ?"}
+            {step === 4 && "Parlez-nous de votre équipe fondatrice."}
+            {step === 5 && "Détaillons les aspects financiers."}
+            {step === 6 && "À qui s'adresse votre offre ?"}
             {step === 7 && "Que proposez-vous exactement ?"}
             {step === 8 && "Analysons votre environnement concurrentiel."}
-            {step === 9 && "Comment allez-vous vous faire conna\u00eetre ?"}
-            {step === 10 && "Derni\u00e8re ligne droite avant la g\u00e9n\u00e9ration !"}
+            {step === 9 && "Comment allez-vous vous faire connaître ?"}
+            {step === 10 && "Dernière ligne droite avant la génération !"}
           </p>
 
           {/* Dynamic step content */}
@@ -817,7 +817,7 @@ export default function CreerPage() {
                 onClick={handleSubmit}
                 className="inline-flex items-center gap-2 rounded-lg bg-[#62B6CB] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#4fa3b8] focus:outline-none focus:ring-2 focus:ring-[#62B6CB] focus:ring-offset-2"
               >
-                G\u00e9n\u00e9rer mon business plan \ud83d\ude80
+                Générer mon business plan 🚀
               </button>
             )}
           </div>

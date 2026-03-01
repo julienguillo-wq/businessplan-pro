@@ -7,9 +7,9 @@ import { FormData } from "@/lib/types";
 
 const CHECKLIST_ITEMS = [
   { label: "Analyse du projet", threshold: 10 },
-  { label: "Etude de march\u00e9", threshold: 25 },
-  { label: "Strat\u00e9gie commerciale", threshold: 45 },
-  { label: "Pr\u00e9visionnel financier", threshold: 65 },
+  { label: "Étude de marché", threshold: 25 },
+  { label: "Stratégie commerciale", threshold: 45 },
+  { label: "Prévisionnel financier", threshold: 65 },
   { label: "Recommandation juridique", threshold: 80 },
   { label: "Mise en forme finale", threshold: 95 },
 ];
@@ -93,7 +93,7 @@ export default function GenererPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "Une erreur est survenue lors de la g\u00e9n\u00e9ration. Veuillez r\u00e9essayer."
+          : "Une erreur est survenue lors de la génération. Veuillez réessayer."
       );
     }
   }, [router]);
