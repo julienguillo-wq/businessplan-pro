@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { FormData, BusinessPlan } from "@/lib/types";
 
+export const maxDuration = 300;
+
 const SECTION_IDS = [
   "executive-summary",
   "company-overview",
@@ -13,37 +15,19 @@ const SECTION_IDS = [
   "risks-opportunities",
 ] as const;
 
-const SYSTEM_PROMPT = `Tu es un consultant expert en business plans pour le marché français. Tu possèdes une expertise approfondie en création d'entreprise, analyse de marché, stratégie commerciale, prévisionnel financier et droit des sociétés en France.
+const SYSTEM_PROMPT = `Tu es un consultant expert en business plans pour le marché français. Génère un business plan professionnel à partir des informations fournies.
 
-Ta mission est de générer un business plan complet, professionnel et détaillé à partir des informations fournies par l'utilisateur. Le business plan doit être équivalent à un document de 40 pages ou plus.
+Retourne UNIQUEMENT du JSON valide (pas de \`\`\`json). Structure exacte :
+{"sections":[{"id":"...","title":"...","content":"..."},…]}
 
-Tu dois retourner UNIQUEMENT du JSON valide, sans aucun balisage markdown (pas de \`\`\`json, pas de \`\`\`). La réponse doit être directement parsable par JSON.parse().
+Les 8 sections (dans cet ordre) : executive-summary, company-overview, market-study, commercial-strategy, operational-plan, financial-forecast, legal-status, risks-opportunities.
 
-La structure JSON attendue est exactement :
-{
-  "sections": [
-    { "id": "executive-summary", "title": "Résumé Exécutif", "content": "..." },
-    { "id": "company-overview", "title": "Présentation de l'Entreprise", "content": "..." },
-    { "id": "market-study", "title": "Étude de Marché", "content": "..." },
-    { "id": "commercial-strategy", "title": "Stratégie Commerciale", "content": "..." },
-    { "id": "operational-plan", "title": "Plan Opérationnel", "content": "..." },
-    { "id": "financial-forecast", "title": "Prévisionnel Financier", "content": "..." },
-    { "id": "legal-status", "title": "Statut Juridique", "content": "..." },
-    { "id": "risks-opportunities", "title": "Risques & Opportunités", "content": "..." }
-  ]
-}
-
-Règles impératives pour le contenu :
-- Le contenu de chaque section doit être en HTML valide utilisant les balises : <h3>, <p>, <ul>, <li>, <ol>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>.
-- N'utilise PAS de balises <h1> ou <h2> (réservées à la mise en page globale). Utilise <h3> pour les sous-titres au sein de chaque section.
-- Chaque section doit être très détaillée et approfondie (minimum 500 mots par section, idéalement 800-1200 mots).
-- Inclus des données chiffrées réalistes, des pourcentages, des analyses concrètes basées sur le marché français.
-- La section "Prévisionnel Financier" doit impérativement contenir des tableaux HTML avec des projections sur 3 ans incluant : compte de résultat prévisionnel, plan de trésorerie, seuil de rentabilité, et plan de financement.
-- Adapte le vocabulaire et les références réglementaires au contexte français (URSSAF, INSEE, CCI, BPI France, etc.).
-- Sois précis sur les aspects juridiques, fiscaux et sociaux propres à la France.
-- Utilise un ton professionnel mais accessible, adapté à un dossier bancaire ou une levée de fonds.
-- Assure-toi que les données financières sont cohérentes entre elles et réalistes pour le secteur d'activité.
-- Fournis des recommandations actionables et spécifiques, pas des généralités.`;
+Règles :
+- Contenu en HTML (<h3>, <p>, <ul>, <li>, <strong>, <em>, <table>). Pas de <h1>/<h2>.
+- Données chiffrées réalistes pour le marché français.
+- Section financial-forecast : tableaux HTML avec projections 3 ans (compte de résultat, trésorerie, seuil de rentabilité).
+- Ton professionnel, adapté à un dossier bancaire.
+- Sois concis mais complet.`;
 
 function buildUserPrompt(formData: FormData): string {
   const fundingSources =
@@ -56,54 +40,18 @@ function buildUserPrompt(formData: FormData): string {
       ? formData.marketingChannels.join(", ")
       : "Non précisé";
 
-  return `Génère un business plan complet et détaillé pour le projet suivant :
+  return `Génère un business plan pour ce projet :
 
-=== INFORMATIONS DU PROJET ===
-
-**Nom du projet :** ${formData.projectName}
-**Description :** ${formData.description}
-
-**Secteur d'activité :** ${formData.sector}
-
-**Localisation :**
-- Ville : ${formData.city}
-- Département : ${formData.department}
-- Type de local : ${formData.localType}
-
-**Équipe :**
-- Nombre de fondateurs : ${formData.founders}
-- Expérience dans le domaine : ${formData.experience}
-- Nombre d'employés prévus : ${formData.employees}
-
-**Financement :**
-- Investissement initial estimé : ${formData.investment}
-- Sources de financement : ${fundingSources}
-- Objectif de chiffre d'affaires (année 1) : ${formData.revenueTarget}
-
-**Clientèle :**
-- Type de clients : ${formData.clientType}
-- Client idéal : ${formData.idealClient}
-
-**Offre :**
-- Produits / Services : ${formData.products}
-- Modèle de tarification : ${formData.pricingModel}
-
-**Concurrence :**
-- Principaux concurrents : ${formData.competitors}
-- Avantage concurrentiel : ${formData.competitiveAdvantage}
-
-**Marketing :**
-- Canaux de marketing : ${marketingChannels}
-- Budget marketing : ${formData.marketingBudget}
-
-**Informations complémentaires :**
-- Date de lancement prévue : ${formData.launchDate}
-- Statut juridique envisagé : ${formData.legalStatus}
-- Objectif principal du business plan : ${formData.bpObjective}
-
-=== FIN DES INFORMATIONS ===
-
-Génère maintenant le business plan complet avec les 8 sections demandées. Assure-toi que chaque section est très détaillée, avec des données chiffrées réalistes et des analyses approfondies adaptées au marché français. Le prévisionnel financier doit contenir des tableaux HTML détaillés avec des projections sur 3 ans.`;
+Projet : ${formData.projectName} — ${formData.description}
+Secteur : ${formData.sector}
+Lieu : ${formData.city} (${formData.department}), local : ${formData.localType}
+Équipe : ${formData.founders} fondateur(s), ${formData.employees} employés prévus. Expérience : ${formData.experience}
+Investissement : ${formData.investment}€, financement : ${fundingSources}, CA visé an 1 : ${formData.revenueTarget}€
+Clients : ${formData.clientType}, cible : ${formData.idealClient}
+Offre : ${formData.products} (tarification : ${formData.pricingModel})
+Concurrents : ${formData.competitors}. Avantage : ${formData.competitiveAdvantage}
+Marketing : ${marketingChannels}, budget : ${formData.marketingBudget}€/mois
+Lancement : ${formData.launchDate}, statut : ${formData.legalStatus}, objectif BP : ${formData.bpObjective}`;
 }
 
 function validateBusinessPlan(data: unknown): data is BusinessPlan {
@@ -140,7 +88,7 @@ export async function POST(request: Request) {
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 8000,
+      max_tokens: 3000,
       messages: [
         {
           role: "user",
