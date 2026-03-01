@@ -51,7 +51,8 @@ Structure exacte de ta réponse :
 {"id":"${sectionId}","title":"${config.title}","content":"..."}
 
 Règles pour le contenu :
-- HTML valide uniquement : <h3>, <p>, <ul>, <li>, <ol>, <strong>, <em>, <table>, <thead>, <tbody>, <tr>, <th>, <td>. Pas de <h1>/<h2>.
+- N'utilise JAMAIS de tableaux HTML (<table>). Utilise uniquement des titres <h3>, paragraphes <p>, listes <ul><li> et texte en gras <strong>. Pas de <h1>/<h2>.
+- Limite ta réponse à 2000 caractères maximum pour le champ content.
 - Données chiffrées réalistes pour le marché français.
 - Ton professionnel, adapté à un dossier bancaire.
 - Section détaillée et complète.
@@ -82,78 +83,68 @@ Marketing : ${marketingChannels}, budget : ${formData.marketingBudget}€/mois
 Lancement : ${formData.launchDate}, statut : ${formData.legalStatus}, objectif BP : ${formData.bpObjective}`;
 }
 
-function repairTruncatedJson(text: string): string {
-  // If text already ends with }, it's likely complete
-  if (text.trimEnd().endsWith("}")) return text;
+function extractContentFromTruncated(raw: string, sectionId: string, sectionTitle: string): Record<string, unknown> | null {
+  // Find "content":" or "content" : " with flexible spacing
+  const contentStart = raw.search(/"content"\s*:\s*"/);
+  if (contentStart === -1) return null;
 
-  console.log("[API] JSON tronqué détecté, tentative de réparation...");
+  // Find the opening quote of the content value
+  const quoteStart = raw.indexOf('"', raw.indexOf(":", contentStart) + 1);
+  if (quoteStart === -1) return null;
 
-  let repaired = text;
+  // Extract everything after the opening quote
+  let content = raw.substring(quoteStart + 1);
 
-  // Check if we're inside a string value (odd number of unescaped quotes)
-  let inString = false;
+  // Try to find proper closing: unescaped quote followed by }
+  // Walk character by character to find the real end of string
+  let properEnd = -1;
   let escaped = false;
-  for (let i = 0; i < repaired.length; i++) {
-    const ch = repaired[i];
+  for (let i = 0; i < content.length; i++) {
     if (escaped) {
       escaped = false;
       continue;
     }
-    if (ch === "\\") {
+    if (content[i] === "\\") {
       escaped = true;
       continue;
     }
-    if (ch === '"') {
-      inString = !inString;
+    if (content[i] === '"') {
+      properEnd = i;
+      break;
     }
   }
 
-  // If we're inside a string, close it
-  if (inString) {
-    // Remove any trailing incomplete HTML tag or escape sequence
-    repaired = repaired.replace(/\\?[^"]*$/, "");
-    // Make sure we didn't leave a trailing backslash
-    if (repaired.endsWith("\\")) {
-      repaired = repaired.slice(0, -1);
-    }
-    repaired += '"';
+  if (properEnd >= 0) {
+    // Found proper end of string
+    content = content.substring(0, properEnd);
+  } else {
+    // Truncated — clean up the end
+    // Remove trailing incomplete escape sequence
+    content = content.replace(/\\[^"\\\/bfnrtu]?$/, "");
+    // Remove trailing incomplete HTML tag like "<st" or "<str"
+    content = content.replace(/<[a-zA-Z\/][^>]*$/, "");
   }
 
-  // Count unclosed braces and brackets
-  let braces = 0;
-  let brackets = 0;
-  inString = false;
-  escaped = false;
-  for (let i = 0; i < repaired.length; i++) {
-    const ch = repaired[i];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (ch === "{") braces++;
-    if (ch === "}") braces--;
-    if (ch === "[") brackets++;
-    if (ch === "]") brackets--;
+  // Unescape JSON string
+  try {
+    content = JSON.parse(`"${content}"`);
+  } catch {
+    // Manual unescape as fallback
+    content = content
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+      .replace(/\\r/g, "");
   }
 
-  // Close unclosed brackets and braces
-  for (let i = 0; i < brackets; i++) repaired += "]";
-  for (let i = 0; i < braces; i++) repaired += "}";
+  if (content.length === 0) return null;
 
-  console.log("[API] JSON réparé, ajouté:", repaired.length - text.length, "caractères");
-  return repaired;
+  console.log(`[API] Contenu extrait par fallback: ${content.length} chars`);
+  return { id: sectionId, title: sectionTitle, content };
 }
 
-function cleanAndParse(raw: string): Record<string, unknown> | null {
+function cleanAndParse(raw: string, sectionId: string, sectionTitle: string): Record<string, unknown> | null {
   let text = raw.trim();
 
   // Remove markdown code fences
@@ -178,53 +169,9 @@ function cleanAndParse(raw: string): Record<string, unknown> | null {
     console.log("[API] Échec parsing direct");
   }
 
-  // Try repairing truncated JSON
-  const repaired = repairTruncatedJson(text);
-  try {
-    return JSON.parse(repaired);
-  } catch {
-    console.log("[API] Échec parsing après réparation");
-  }
-
-  // Regex fallback: extract content field from raw text
-  const idMatch = raw.match(/"id"\s*:\s*"([^"]+)"/);
-  const titleMatch = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  const contentMatch = raw.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-
-  if (idMatch && contentMatch) {
-    let content = contentMatch[1];
-    try {
-      content = JSON.parse(`"${content}"`);
-    } catch {
-      // keep as-is
-    }
-    return {
-      id: idMatch[1],
-      title: titleMatch ? titleMatch[1] : idMatch[1],
-      content,
-    };
-  }
-
-  // Last resort: extract everything after "content":" as raw content
-  const lastResort = raw.match(/"content"\s*:\s*"([\s\S]+)/);
-  if (lastResort && idMatch) {
-    let content = lastResort[1];
-    // Remove trailing incomplete JSON artifacts
-    content = content.replace(/"\s*\}\s*$/, "");
-    content = content.replace(/\\$/, "");
-    // Unescape basic JSON escapes
-    content = content
-      .replace(/\\n/g, "\n")
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, "\\");
-    return {
-      id: idMatch[1],
-      title: titleMatch ? titleMatch[1] : idMatch[1],
-      content,
-    };
-  }
-
-  return null;
+  // JSON is likely truncated — extract content directly from raw response
+  console.log("[API] JSON tronqué, extraction directe du contenu...");
+  return extractContentFromTruncated(raw, sectionId, sectionTitle);
 }
 
 export async function POST(request: Request) {
@@ -277,9 +224,10 @@ export async function POST(request: Request) {
     const rawText = textBlock.text;
     console.log(`[API] Réponse brute (${sectionId}):`, rawText.substring(0, 200), "...");
 
-    const parsed = cleanAndParse(rawText);
+    const config = SECTION_CONFIGS[sectionId];
+    const parsed = cleanAndParse(rawText, sectionId, config.title);
 
-    if (!parsed || typeof parsed.content !== "string") {
+    if (!parsed || typeof parsed.content !== "string" || parsed.content.length === 0) {
       console.error(`[API] Parsing échoué pour ${sectionId}. Réponse brute:`, rawText);
       return NextResponse.json(
         { error: "La réponse de l'IA n'est pas un JSON valide. Veuillez réessayer." },
@@ -287,7 +235,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const config = SECTION_CONFIGS[sectionId];
     const section = {
       id: sectionId,
       title: (typeof parsed.title === "string" && parsed.title) || config.title,
