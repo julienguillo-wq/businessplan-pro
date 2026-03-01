@@ -15,9 +15,22 @@ const SECTION_IDS = [
   "risks-opportunities",
 ] as const;
 
+const SECTION_TITLES: Record<string, string> = {
+  "executive-summary": "Résumé Exécutif",
+  "company-overview": "Présentation de l'Entreprise",
+  "market-study": "Étude de Marché",
+  "commercial-strategy": "Stratégie Commerciale",
+  "operational-plan": "Plan Opérationnel",
+  "financial-forecast": "Prévisionnel Financier",
+  "legal-status": "Statut Juridique",
+  "risks-opportunities": "Risques & Opportunités",
+};
+
 const SYSTEM_PROMPT = `Tu es un consultant expert en business plans pour le marché français. Génère un business plan professionnel à partir des informations fournies.
 
-Retourne UNIQUEMENT du JSON valide (pas de \`\`\`json). Structure exacte :
+Réponds UNIQUEMENT avec du JSON valide, sans backticks, sans texte avant ou après. Pas de \`\`\`json, pas de \`\`\`, pas de commentaire. Juste le JSON.
+
+Structure exacte :
 {"sections":[{"id":"...","title":"...","content":"..."},…]}
 
 Les 8 sections (dans cet ordre) : executive-summary, company-overview, market-study, commercial-strategy, operational-plan, financial-forecast, legal-status, risks-opportunities.
@@ -52,6 +65,85 @@ Offre : ${formData.products} (tarification : ${formData.pricingModel})
 Concurrents : ${formData.competitors}. Avantage : ${formData.competitiveAdvantage}
 Marketing : ${marketingChannels}, budget : ${formData.marketingBudget}€/mois
 Lancement : ${formData.launchDate}, statut : ${formData.legalStatus}, objectif BP : ${formData.bpObjective}`;
+}
+
+function cleanRawResponse(raw: string): string {
+  let text = raw.trim();
+
+  // Remove markdown code fences (```json ... ``` or ``` ... ```)
+  text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?\s*```\s*$/i, "");
+
+  // Remove any text before the first {
+  const firstBrace = text.indexOf("{");
+  if (firstBrace > 0) {
+    text = text.substring(firstBrace);
+  }
+
+  // Remove any text after the last }
+  const lastBrace = text.lastIndexOf("}");
+  if (lastBrace >= 0 && lastBrace < text.length - 1) {
+    text = text.substring(0, lastBrace + 1);
+  }
+
+  return text.trim();
+}
+
+function extractSectionsWithRegex(raw: string): BusinessPlan | null {
+  const sections: BusinessPlan["sections"] = [];
+
+  for (const id of SECTION_IDS) {
+    // Match "id":"<section-id>" ... "content":"<content>"
+    // Account for varying key order: id/title/content can appear in any order
+    const sectionRegex = new RegExp(
+      `\\{[^{}]*"id"\\s*:\\s*"${id}"[^{}]*"content"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"[^{}]*\\}`,
+      "s"
+    );
+    let match = raw.match(sectionRegex);
+
+    // Try alternate key order: content before id
+    if (!match) {
+      const altRegex = new RegExp(
+        `\\{[^{}]*"content"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"[^{}]*"id"\\s*:\\s*"${id}"[^{}]*\\}`,
+        "s"
+      );
+      match = raw.match(altRegex);
+    }
+
+    if (match) {
+      let content = match[1];
+      // Unescape JSON string escapes
+      try {
+        content = JSON.parse(`"${content}"`);
+      } catch {
+        // Keep as-is if unescape fails
+      }
+      sections.push({
+        id,
+        title: SECTION_TITLES[id] || id,
+        content,
+      });
+    }
+  }
+
+  if (sections.length >= 4) {
+    // Fill missing sections with placeholder
+    for (const id of SECTION_IDS) {
+      if (!sections.find((s) => s.id === id)) {
+        sections.push({
+          id,
+          title: SECTION_TITLES[id] || id,
+          content: "<p><em>Section en cours de génération. Veuillez régénérer le business plan.</em></p>",
+        });
+      }
+    }
+    // Sort by SECTION_IDS order
+    sections.sort(
+      (a, b) => SECTION_IDS.indexOf(a.id as typeof SECTION_IDS[number]) - SECTION_IDS.indexOf(b.id as typeof SECTION_IDS[number])
+    );
+    return { sections };
+  }
+
+  return null;
 }
 
 function validateBusinessPlan(data: unknown): data is BusinessPlan {
@@ -107,25 +199,49 @@ export async function POST(request: Request) {
       );
     }
 
-    let rawText = textBlock.text.trim();
+    const rawText = textBlock.text;
+    console.log("=== RÉPONSE BRUTE CLAUDE ===");
+    console.log(rawText.substring(0, 500));
+    console.log("...");
+    console.log(rawText.substring(rawText.length - 300));
+    console.log("=== FIN RÉPONSE (longueur:", rawText.length, "chars) ===");
 
-    // Strip markdown code fences if the model wraps the JSON despite instructions
-    if (rawText.startsWith("```")) {
-      rawText = rawText
-        .replace(/^```(?:json)?\s*\n?/, "")
-        .replace(/\n?\s*```$/, "");
-    }
+    // Step 1: Clean the response
+    const cleaned = cleanRawResponse(rawText);
+    console.log("=== APRÈS NETTOYAGE (premiers 200 chars) ===");
+    console.log(cleaned.substring(0, 200));
 
+    // Step 2: Try direct JSON parse
     let parsed: unknown;
     try {
-      parsed = JSON.parse(rawText);
-    } catch {
-      // Attempt to extract JSON object from surrounding text
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
+      parsed = JSON.parse(cleaned);
+      console.log("JSON parsé directement avec succès");
+    } catch (parseError) {
+      console.log("Échec parsing direct:", parseError instanceof Error ? parseError.message : parseError);
+
+      // Step 3: Try extracting the outermost JSON object
+      const firstBrace = cleaned.indexOf("{");
+      const lastBrace = cleaned.lastIndexOf("}");
+      if (firstBrace >= 0 && lastBrace > firstBrace) {
+        const extracted = cleaned.substring(firstBrace, lastBrace + 1);
         try {
-          parsed = JSON.parse(jsonMatch[0]);
+          parsed = JSON.parse(extracted);
+          console.log("JSON parsé après extraction braces");
         } catch {
+          console.log("Échec parsing après extraction braces");
+        }
+      }
+
+      // Step 4: Fallback — extract sections individually with regex
+      if (!parsed) {
+        console.log("Tentative extraction par regex...");
+        const regexResult = extractSectionsWithRegex(rawText);
+        if (regexResult) {
+          console.log(`Regex: ${regexResult.sections.length} sections extraites`);
+          parsed = regexResult;
+        } else {
+          console.error("Toutes les méthodes de parsing ont échoué");
+          console.error("Réponse brute complète:", rawText);
           return NextResponse.json(
             {
               error:
@@ -134,18 +250,17 @@ export async function POST(request: Request) {
             { status: 500 }
           );
         }
-      } else {
-        return NextResponse.json(
-          {
-            error:
-              "La réponse de l'IA n'est pas un JSON valide. Veuillez réessayer.",
-          },
-          { status: 500 }
-        );
       }
     }
 
     if (!validateBusinessPlan(parsed)) {
+      console.error("Validation échouée. Structure reçue:", JSON.stringify(parsed).substring(0, 500));
+      // Try regex fallback on validation failure too
+      const regexResult = extractSectionsWithRegex(rawText);
+      if (regexResult && validateBusinessPlan(regexResult)) {
+        console.log("Récupéré via regex après échec validation");
+        return NextResponse.json(regexResult);
+      }
       return NextResponse.json(
         {
           error:
